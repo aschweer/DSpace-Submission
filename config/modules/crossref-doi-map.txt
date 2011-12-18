@@ -1,0 +1,5 @@
+author          = dc.contributor.author(name)
+title           = dc.title
+issued          = dc.date.copyright(date)
+DOI             = dc.identifier.doi
+container-title = dc.relation.ispartof
