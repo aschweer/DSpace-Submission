@@ -6,6 +6,7 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.util.List;
 import java.util.Map;
 
@@ -36,8 +37,9 @@ public class FetchMetadataStepTest {
     @Test
     public void testReadMappingsFile() {
         FetchMetadataStep step = new FetchMetadataStep();
-        String filename = "/home/andrea/4.Archive/CrossrefDOILookup/config/modules/crossref-doi-map.txt";
-        Map<String, String> mapping = step.getMetadataMapping(filename);
+        String filename = "config/modules/crossref-doi-map.txt";
+	    URL resource = ClassLoader.getSystemResource(filename);
+        Map<String, String> mapping = step.getMetadataMapping(resource.getFile());
         assert mapping != null;
         assert !mapping.isEmpty();
         assert mapping.containsKey("author");
@@ -50,7 +52,7 @@ public class FetchMetadataStepTest {
         Map<String, Object> data;
         try {
             ObjectMapper mapper = new ObjectMapper();
-            data = mapper.readValue(new File("/home/andrea/4.Archive/CrossrefDOILookup/src/test/resources/citation.json"), Map.class);
+            data = mapper.readValue(getCitationFile(), Map.class);
             List values = step.extractFieldValues(null, data.get("title"));
             assert(values.size() == 1);
             assert values.get(0).equals("From the analyst's couch: Selective anticancer drugs");
@@ -60,13 +62,17 @@ public class FetchMetadataStepTest {
         }
     }
 
-    @Test
+	private File getCitationFile() {
+		return new File(ClassLoader.getSystemResource("citation.json").getFile());
+	}
+
+	@Test
     public void testExtractFieldValueList() {
         FetchMetadataStep step = new FetchMetadataStep();
         Map<String, Object> data;
         try {
             ObjectMapper mapper = new ObjectMapper();
-            data = mapper.readValue(new File("/home/andrea/4.Archive/CrossrefDOILookup/src/test/resources/citation.json"), Map.class);
+            data = mapper.readValue(getCitationFile(), Map.class);
             List values = step.extractFieldValues("name", data.get("author"));
             assert(values.size() == 2);
             assert values.contains("Atkins, Joshua H.");
@@ -83,7 +89,7 @@ public class FetchMetadataStepTest {
         Map<String, Object> data;
         try {
             ObjectMapper mapper = new ObjectMapper();
-            data = mapper.readValue(new File("/home/andrea/4.Archive/CrossrefDOILookup/src/test/resources/citation.json"), Map.class);
+            data = mapper.readValue(getCitationFile(), Map.class);
             List values = step.extractFieldValues("date", data.get("issued"));
             assert(values.size() == 1);
             assert values.contains("2002-07");
