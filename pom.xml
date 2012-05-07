@@ -53,4 +53,12 @@
 	  <version>1.9.3</version>
 	</dependency>
     </dependencies>
+    
+    <scm>
+	<connection>scm:git:git://github.com/aschweer/DSpace-Submission.git</connection>
+	<url>https://github.com/aschweer/DSpace-Submission</url>
+	<developerConnection>scm:git:ssh://git@github.com/aschweer/DSpace-Submission.git</developerConnection>
+    </scm>
+    
+
 </project>
