@@ -5,9 +5,7 @@ import org.apache.commons.httpclient.methods.GetMethod;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.dspace.app.util.SubmissionInfo;
 import org.dspace.authorize.AuthorizeException;
-import org.dspace.content.InProgressSubmission;
 import org.dspace.content.Item;
-import org.dspace.content.MetadataField;
 import org.dspace.core.ConfigurationManager;
 import org.dspace.core.Context;
 import org.dspace.submit.AbstractProcessingStep;
@@ -34,19 +32,59 @@ public class FetchMetadataStep extends org.dspace.submit.AbstractProcessingStep 
             String doiString = getDoi(request);
             boolean clearExisting = overrideExistingValues(request);
             // get jackson tree from web
-            Map<String, Object> citationData = getCitationData(doiString);
+            Map<String, Object> crossrefMetadata = getCrossrefMetadata(doiString);
             // get mapping jackson -> md fields
             Map<String, String> metadataMapping = getMetadataMapping(ConfigurationManager.getProperty("lconz-extras", "submission.crossref.mapping"));
             // actually fill in item
-            fillInMetadata(submission.getSubmissionItem().getItem(), metadataMapping, citationData, clearExisting
-            );
+            fillInMetadata(submission.getSubmissionItem().getItem(), metadataMapping, crossrefMetadata, clearExisting);
+
+	        boolean doCitation = ConfigurationManager.getBooleanProperty("lconz-extras", "submission.crossref.citation", false);
+	        if (doCitation) {
+		        String citationStyle = ConfigurationManager.getProperty("lconz-extras", "submission.crossref.citation.style");
+		        if (citationStyle == null || "".equals(citationStyle)) {
+			        citationStyle = "apa"; // use APA as default citation style
+		        }
+		        String citationLocale = ConfigurationManager.getProperty("lconz-extras", "submission.crossref.citation.locale");
+		        if (citationLocale == null || "".equals(citationLocale)) {
+			        citationLocale = "en-GB"; // use British English as default citatation language
+		        }
+		        String citation = getCrossrefCitation(doiString, citationStyle, citationLocale);
+		        String field = ConfigurationManager.getProperty("lconz-extras", "submission.crossref.citatation.field");
+		        if (field == null || "".equals(field)) {
+			        field = "dc.identifier.citation";
+		        }
+		        fillInCitation(submission.getSubmissionItem().getItem(), field, citation, citationLocale.replaceAll("-", "_"), clearExisting);
+	        }
         } catch (IOException ioe) {
             super.addErrorMessage(1, "An error occurred while retrieving metadata for this item: " + ioe.getMessage());
         }
         return AbstractProcessingStep.STATUS_COMPLETE;
     }
 
-    private void fillInMetadata(Item item, Map<String, String> metadataMapping, Map<String, Object> citationData, boolean clearExisting) throws AuthorizeException, SQLException {
+	private void fillInCitation(Item item, String field, String citation, String locale, boolean clearExisting) throws AuthorizeException, SQLException {
+		String[] components = field.split("\\.");
+		String schema = components[0];
+		String element = components[1];
+		String qualifier = components.length > 2 ? components[2] : null;
+
+		boolean changes = false;
+
+		if (clearExisting) {
+			item.clearMetadata(schema, element, qualifier, Item.ANY);
+			changes = true;
+		}
+
+		if (citation != null && !"".equals(citation)) {
+			item.addMetadata(schema, element, qualifier, locale, citation);
+			changes = true;
+		}
+
+		if (changes) {
+			item.update();
+		}
+	}
+
+	private void fillInMetadata(Item item, Map<String, String> metadataMapping, Map<String, Object> citationData, boolean clearExisting) throws AuthorizeException, SQLException {
         if (metadataMapping == null || metadataMapping.isEmpty()) {
             return;
         }
@@ -67,10 +105,7 @@ public class FetchMetadataStep extends org.dspace.submit.AbstractProcessingStep 
                 String[] field = fieldName.split("\\.");
                 String schema = field[0];
                 String element = field[1];
-                String qualifier = null;
-                if (field.length > 2) {
-                    qualifier = field[2];
-                }
+                String qualifier = field.length > 2 ? field[2] : null;
 
                 if (clearExisting) {
                     item.clearMetadata(schema, element, qualifier, Item.ANY);
@@ -179,7 +214,7 @@ public class FetchMetadataStep extends org.dspace.submit.AbstractProcessingStep 
         return metadataMapping;
     }
 
-    Map<String, Object> getCitationData(String doiString) throws IOException {
+    Map<String, Object> getCrossrefMetadata(String doiString) throws IOException {
         Map result;
         GetMethod get = new GetMethod("http://dx.doi.org/" + doiString);
         try {
@@ -197,7 +232,24 @@ public class FetchMetadataStep extends org.dspace.submit.AbstractProcessingStep 
         return result;
     }
 
-    String getDoi(HttpServletRequest request) {
+	String getCrossrefCitation(String doiString, String citationStyle, String citationLocale) throws IOException {
+		String result;
+		GetMethod get = new GetMethod("http://dx.doi.org/" + doiString);
+		try {
+			HttpClient client = new HttpClient();
+			client.getHttpConnectionManager().getParams().setConnectionTimeout(1000);
+			get.addRequestHeader("Accept", "text/x-bibliography; style=" + citationStyle + "; locale=" + citationLocale);
+
+			client.executeMethod(get);
+
+			result = get.getResponseBodyAsString(2000);
+		} finally {
+			get.releaseConnection();
+		}
+		return result;
+	}
+
+	String getDoi(HttpServletRequest request) {
         String parameter = request.getParameter("doi");
         return parameter;
 	}
