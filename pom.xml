@@ -34,7 +34,7 @@
             <artifactId>dspace-xmlui</artifactId>
             <type>jar</type>
             <classifier>classes</classifier>
-            <version>4.0</version>
+            <version>4.1</version>
 	    <scope>provided</scope>
         </dependency>
         <dependency>
