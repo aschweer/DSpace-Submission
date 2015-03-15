@@ -65,9 +65,7 @@ public class DepositMetadataPopulatingCompleteStep extends CompleteStep {
 
 		try {
 			item.update();
-		} catch (SQLException e) {
-			log.error("Problem populating deposit metadata: " + e.getMessage(), e);
-		} catch (AuthorizeException e) {
+		} catch (SQLException | AuthorizeException e) {
 			log.error("Problem populating deposit metadata: " + e.getMessage(), e);
 		}
 	}
@@ -97,6 +95,12 @@ public class DepositMetadataPopulatingCompleteStep extends CompleteStep {
 		item.addMetadata(schema, element, qualifier, null, now.toString());
 
 		log.info("Set deposit date metadata on item id=" + item.getID() + " to " + now.toString());
+
+		try {
+			item.update();
+		} catch (SQLException | AuthorizeException e) {
+			log.error("Problem populating deposit metadata: " + e.getMessage(), e);
+		}
 	}
 
 	@Override

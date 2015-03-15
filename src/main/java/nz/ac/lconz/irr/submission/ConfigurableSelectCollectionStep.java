@@ -152,7 +152,7 @@ public class ConfigurableSelectCollectionStep extends AbstractSubmissionStep {
 				if (o1.getName() != null && o2.getName() != null) {
 					return (o1.getName().compareToIgnoreCase(o2.getName()));
 				}
-				return new Integer(o1.getID()).compareTo(new Integer(o2.getID()));
+				return new Integer(o1.getID()).compareTo(o2.getID());
 			}
 		});
 		return collections;
